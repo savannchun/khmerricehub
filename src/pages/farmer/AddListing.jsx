@@ -1,0 +1,300 @@
+import { useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { UploadCloud, X, Plus, Eye } from "lucide-react";
+import { DashboardLayout } from "../../components/layout/DashboardLayout.jsx";
+import { Button } from "../../components/ui/core.jsx";
+import { Breadcrumb } from "../../components/ui/display.jsx";
+import { Input, Textarea, Select } from "../../components/ui/forms.jsx";
+import { Modal, useToast } from "../../components/ui/overlays.jsx";
+import { RiceCard } from "../../components/cards.jsx";
+import { NAV_FARMER, PROVINCES, RICE_TYPES, CATEGORIES, RICE_IMAGES } from "../../lib/data.js";
+
+function UploadArea({ images, onAdd, onRemove }) {
+  const inputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+
+  const handleFiles = (files) => {
+    const fileList = Array.from(files);
+    fileList.forEach((file) => {
+      if (file.type.startsWith("image/")) {
+        onAdd({ name: file.name, src: URL.createObjectURL(file) });
+      }
+    });
+  };
+
+  return (
+    <div>
+      <div
+        className={`grid place-items-center rounded-card border-2 border-dashed p-10 text-center transition-all ${
+          dragging ? "border-primary bg-primary-50" : "border-line-dark bg-bg hover:border-primary hover:bg-primary-50/50"
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+      >
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-50 text-primary">
+          <UploadCloud className="h-7 w-7" aria-hidden />
+        </span>
+        <p className="mt-4 font-display font-bold text-ink">Drag & drop your rice photos</p>
+        <p className="mt-1 text-sm text-subtle">or click to browse · PNG, JPG up to 10MB each</p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="sr-only"
+          aria-label="Upload images"
+          onChange={(e) => {
+            handleFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <Button variant="secondary" className="mt-5" onClick={() => inputRef.current?.click()}>
+          <Plus className="h-4 w-4" aria-hidden />
+          Choose images
+        </Button>
+      </div>
+
+      {images.length > 0 && (
+        <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {images.map((image, i) => (
+            <div key={i} className="group relative aspect-square overflow-hidden rounded-xl ring-1 ring-line">
+              <img src={image.src} alt={image.name} className="h-full w-full object-cover" loading="lazy" />
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                aria-label={`Remove ${image.name}`}
+                className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-ink/70 text-white opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              {i === 0 && (
+                <span className="absolute bottom-1.5 left-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  Cover
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const emptyForm = {
+  name: "",
+  type: "Fragrant Rice",
+  category: "Fragrant Rice",
+  province: "Battambang",
+  district: "",
+  price: "",
+  quantity: "",
+  description: "",
+  specs: [
+    { key: "Harvest season", value: "2026" },
+    { key: "Grain length", value: "" },
+    { key: "Moisture", value: "" },
+    { key: "Purity", value: "" },
+  ],
+};
+
+export default function AddListing() {
+  const [form, setForm] = useState(emptyForm);
+  const [images, setImages] = useState([{ name: "jasmine-sample.jpg", src: RICE_IMAGES[0] }]);
+  const [errors, setErrors] = useState({});
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const setSpec = (index, field) => (e) =>
+    setForm((f) => ({
+      ...f,
+      specs: f.specs.map((s, i) => (i === index ? { ...s, [field]: e.target.value } : s)),
+    }));
+
+  const validate = () => {
+    const next = {};
+    if (!form.name.trim()) next.name = "Rice name is required";
+    if (!form.price) next.price = "Price is required";
+    if (!form.quantity) next.quantity = "Quantity is required";
+    if (!form.district.trim()) next.district = "District is required";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const submit = (action) => {
+    if (!validate()) {
+      toast.error("Missing information", "Please fill in the required fields.");
+      return;
+    }
+    if (action === "publish") {
+      toast.success("Listing published", `${form.name} is now live on the marketplace.`);
+    } else {
+      toast.success("Draft saved", `${form.name} was saved as a draft.`);
+    }
+    navigate("/farmer/listings");
+  };
+
+  const previewItem = {
+    id: "preview",
+    name: form.name || "Your rice name",
+    type: form.type,
+    province: form.province,
+    district: form.district || "—",
+    price: Number(form.price) || 0,
+    quantity: Number(form.quantity) || 0,
+    unit: "kg",
+    farmer: "Sokha Farm",
+    rating: 4.9,
+    reviews: 214,
+    organic: false,
+    status: "Published",
+    image: images[0]?.src || RICE_IMAGES[0],
+  };
+
+  return (
+    <DashboardLayout
+      nav={NAV_FARMER}
+      title="Add Rice Listing"
+      subtitle="Create a new product"
+      notificationPath="/farmer/notifications"
+      accent="bg-primary-dark"
+    >
+      <Breadcrumb
+        className="mb-6"
+        items={[
+          { label: "Listings", to: "/farmer/listings" },
+          { label: "Add listing" },
+        ]}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="space-y-6">
+          <section className="card p-6">
+            <h3 className="font-display text-base font-bold text-ink">Product images</h3>
+            <p className="mb-4 text-sm text-subtle">
+              Add up to 8 photos. The first image will be the cover photo.
+            </p>
+            <UploadArea
+              images={images}
+              onAdd={(image) => setImages((list) => [...list, image])}
+              onRemove={(index) => setImages((list) => list.filter((_, i) => i !== index))}
+            />
+          </section>
+
+          <section className="card p-6">
+            <h3 className="font-display text-base font-bold text-ink">Details</h3>
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <Input label="Rice name" required placeholder="e.g. Premium Jasmine Rice" value={form.name} onChange={set("name")} error={errors.name} className="sm:col-span-2" />
+              <Select label="Rice type" value={form.type} onChange={set("type")}>
+                {RICE_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </Select>
+              <Select label="Category" value={form.category} onChange={set("category")}>
+                {CATEGORIES.map((category) => (
+                  <option key={category.id} value={category.name}>{category.name}</option>
+                ))}
+              </Select>
+              <Select label="Province" value={form.province} onChange={set("province")}>
+                {PROVINCES.map((province) => (
+                  <option key={province} value={province}>{province}</option>
+                ))}
+              </Select>
+              <Input label="District" placeholder="e.g. Banan" value={form.district} onChange={set("district")} error={errors.district} />
+              <Input label="Price (USD/kg)" type="number" min="0" step="0.01" placeholder="1.25" value={form.price} onChange={set("price")} error={errors.price} />
+              <Input label="Quantity available" type="number" min="0" step="1" placeholder="2500" value={form.quantity} onChange={set("quantity")} error={errors.quantity} hint="Kilograms in stock" />
+              <Textarea
+                label="Description"
+                required
+                rows={5}
+                placeholder="Describe your rice — variety, harvest, cooking qualities…"
+                value={form.description}
+                onChange={set("description")}
+                className="sm:col-span-2"
+              />
+            </div>
+          </section>
+
+          <section className="card p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-base font-bold text-ink">Specifications</h3>
+                <p className="text-sm text-subtle">Optional quality details buyers look for</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Plus}
+                onClick={() => setForm((f) => ({ ...f, specs: [...f.specs, { key: "", value: "" }] }))}
+              >
+                Add spec
+              </Button>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {form.specs.map((spec, index) => (
+                <div key={index} className="flex items-end gap-3">
+                  <Input
+                    label="Label"
+                    placeholder="e.g. Moisture"
+                    value={spec.key}
+                    onChange={setSpec(index, "key")}
+                  />
+                  <Input
+                    label="Value"
+                    placeholder="e.g. 13.5%"
+                    value={spec.value}
+                    onChange={setSpec(index, "value")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, specs: f.specs.filter((_, i) => i !== index) }))}
+                    aria-label="Remove specification"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-btn text-faint transition hover:bg-danger-50 hover:text-danger"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <div className="card p-5">
+            <h3 className="font-display text-base font-bold text-ink">Listing preview</h3>
+            <div className="mt-4">
+              <RiceCard item={previewItem} />
+            </div>
+            <Button variant="secondary" className="mt-4 w-full" icon={Eye} onClick={() => setPreviewOpen(true)}>
+              Open preview
+            </Button>
+          </div>
+
+          <div className="card flex flex-col gap-3 p-5">
+            <Button variant="ghost" onClick={() => submit("draft")}>
+              Save draft
+            </Button>
+            <Button onClick={() => submit("publish")}>Publish listing</Button>
+            <Button as={Link} to="/farmer/listings" variant="secondary">
+              Cancel
+            </Button>
+          </div>
+        </aside>
+      </div>
+
+      <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="Listing preview" size="lg">
+        <RiceCard item={previewItem} />
+      </Modal>
+    </DashboardLayout>
+  );
+}
+

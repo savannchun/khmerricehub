@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ============================================================
+    // KHMERRICEHUB — DEMO RULES
+    // Permissive on purpose so the marketplace works for a school
+    // demo / hand-in (any visitor can read and write). The app also
+    // falls back to bundled demo data when Firestore is empty.
+    //
+    // NOTE: Lock this down before production!
+    // ============================================================
+    match /{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
