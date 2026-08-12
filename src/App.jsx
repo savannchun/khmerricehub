@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Navigate, Routes, Route, useLocation } from "react-router-dom";
+import { useAuth } from "./context/AuthContext.jsx";
 
 import Home from "./pages/Home.jsx";
 import Marketplace from "./pages/Marketplace.jsx";
@@ -42,6 +43,33 @@ function ScrollToTop() {
   return null;
 }
 
+function ProtectedRoute({ children, allowedRole }) {
+  const { user, initializing } = useAuth();
+
+  // Wait until Firebase finishes checking the current user.
+  if (initializing) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  // Not logged in → go to login.
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Logged in but wrong role → send them to their own dashboard.
+  if (allowedRole && user.role !== allowedRole) {
+    const dashboard =
+      user.role === "admin"
+        ? "/admin/dashboard"
+        : user.role === "farmer"
+          ? "/farmer/dashboard"
+          : "/buyer/dashboard";
+
+    return <Navigate to={dashboard} replace />;
+  }
+
+  return children;
+}
 export default function App() {
   return (
     <>
@@ -63,7 +91,10 @@ export default function App() {
         <Route path="/buyer/orders/:id" element={<OrderHistory />} />
         <Route path="/buyer/favorites" element={<Favorites />} />
         <Route path="/buyer/messages" element={<Messages role="buyer" />} />
-        <Route path="/buyer/notifications" element={<Notifications role="buyer" />} />
+        <Route
+          path="/buyer/notifications"
+          element={<Notifications role="buyer" />}
+        />
         <Route path="/buyer/profile" element={<Profile role="buyer" />} />
 
         <Route path="/farmer/dashboard" element={<FarmerDashboard />} />
@@ -72,16 +103,74 @@ export default function App() {
         <Route path="/farmer/listings/:id/edit" element={<EditListing />} />
         <Route path="/farmer/orders" element={<FarmerOrders />} />
         <Route path="/farmer/messages" element={<Messages role="farmer" />} />
-        <Route path="/farmer/notifications" element={<Notifications role="farmer" />} />
+        <Route
+          path="/farmer/notifications"
+          element={<Notifications role="farmer" />}
+        />
         <Route path="/farmer/profile" element={<Profile role="farmer" />} />
 
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/users" element={<UserManagement />} />
-        <Route path="/admin/farmers" element={<FarmerApproval />} />
-        <Route path="/admin/moderation" element={<ProductModeration />} />
-        <Route path="/admin/orders" element={<OrderManagement />} />
-        <Route path="/admin/reports" element={<Reports />} />
-        <Route path="/admin/settings" element={<SettingsPage />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/farmers"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <FarmerApproval />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/moderation"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <ProductModeration />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/orders"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <OrderManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
