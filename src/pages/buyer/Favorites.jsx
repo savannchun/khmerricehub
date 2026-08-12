@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { Heart, Store } from "lucide-react";
+import { Heart, Store } from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button } from "../../components/ui/core";
 import { Badge, EmptyState } from "../../components/ui/display";
 import { RiceCard } from "../../components/cards";
 import { useToast } from "../../components/ui/overlays";
-import { NAV_BUYER, RICE_LISTINGS as DEMO_LISTINGS } from "../../lib/data";
+import { NAV_BUYER } from "../../lib/data";
 import { getListings } from "../../lib/services";
 import { useAsyncData } from "../../lib/useAsyncData";
 import { useFavorites } from "./useFavorites";
@@ -14,7 +14,7 @@ import { useFavorites } from "./useFavorites";
 export default function Favorites() {
   const toast = useToast();
   const { count, favorites, isFavorite, toggle } = useFavorites();
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
+  const [listings] = useAsyncData(getListings, []);
 
   const items = listings.filter((rice) => favorites.includes(rice.id));
 

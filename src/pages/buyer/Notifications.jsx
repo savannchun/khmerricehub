@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck } from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button } from "../../components/ui/core";

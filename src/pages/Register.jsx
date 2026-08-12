@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Phone, UserRound, Wheat } from "lucide-react";
+import { Mail, Phone, UserRound, Wheat } from "../lib/fa";
 import { Logo } from "../components/layout/Navbar";
 import { Button } from "../components/ui/core";
 import { Checkbox, Input, PasswordInput, RadioGroup } from "../components/ui/forms";

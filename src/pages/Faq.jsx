@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, HelpCircle, Mail, MessageCircle, Phone, Wheat } from "lucide-react";
+import { ArrowRight, HelpCircle, Mail, MessageCircle, Phone, Wheat } from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button, Reveal } from "../components/ui/core";
 import { SearchBar } from "../components/ui/forms";

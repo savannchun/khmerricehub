@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, Calendar, Camera, Mail, MapPin, Phone, Save, User } from "lucide-react";
+import { Bookmark, Calendar, Camera, Mail, MapPin, Phone, Save, User } from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button, IconButton } from "../../components/ui/core";

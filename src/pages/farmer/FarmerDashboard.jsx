@@ -10,7 +10,7 @@ import {
   ListChecks,
   TrendingUp,
   BadgeCheck,
-} from "lucide-react";
+} from "../../lib/fa";
 import { DashboardLayout } from "../../components/layout/DashboardLayout.jsx";
 import { StatCard } from "../../components/ui/display.jsx";
 import { Button, IconButton } from "../../components/ui/core.jsx";
@@ -20,8 +20,6 @@ import { AreaChart, BarChart, HBarList, ProgressRing } from "../../components/ch
 import {
   NAV_FARMER,
   FARMERS as DEMO_FARMERS,
-  RICE_LISTINGS as DEMO_LISTINGS,
-  ORDERS as DEMO_ORDERS,
   MONTHS,
   REVENUE_SERIES,
   ORDERS_SERIES,
@@ -29,6 +27,7 @@ import {
 } from "../../lib/data.js";
 import { getFarmers, getListings, getOrders } from "../../lib/services.js";
 import { useAsyncData } from "../../lib/useAsyncData.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { formatPrice, formatDate } from "../../lib/utils.js";
 
 const QUICK_ACTIONS = [
@@ -39,12 +38,18 @@ const QUICK_ACTIONS = [
 ];
 
 export default function FarmerDashboard() {
+  const { user } = useAuth();
   const [farmers] = useAsyncData(getFarmers, DEMO_FARMERS);
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
-  const [orders] = useAsyncData(getOrders, DEMO_ORDERS);
+  const [listings] = useAsyncData(getListings, []);
+  const loadMine = async () => {
+    if (!user) return [];
+    const all = await getOrders();
+    return all.filter((o) => o.farmerId === user.uid);
+  };
+  const [orders] = useAsyncData(loadMine, [], [user?.uid]);
 
   const store = farmers[0] || DEMO_FARMERS[0];
-  const storeProducts = listings.filter((r) => r.farmerId === store.id);
+  const storeProducts = listings.filter((r) => r.farmerId === user?.uid);
 
   return (
     <DashboardLayout
@@ -88,8 +93,8 @@ export default function FarmerDashboard() {
 
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total Products" value={storeProducts.length} delta={2} icon={Wheat} iconClassName="bg-primary-50 text-primary" />
-        <StatCard label="Orders" value={store.products * 4} delta={12} icon={ShoppingBag} iconClassName="bg-gold-50 text-gold-dark" />
+        <StatCard label="Total Products" value={storeProducts.length} icon={Wheat} iconClassName="bg-primary-50 text-primary" />
+        <StatCard label="Orders" value={orders.length} icon={ShoppingBag} iconClassName="bg-gold-50 text-gold-dark" />
         <StatCard label="Revenue" value="$18,400" delta={9} icon={DollarSign} iconClassName="bg-success-50 text-success" />
         <StatCard label="Messages" value="8" delta={3} icon={MessageSquare} iconClassName="bg-info-50 text-info" />
         <StatCard label="Views" value="2,481" delta={18} icon={Eye} iconClassName="bg-primary-50 text-primary" />
@@ -162,7 +167,7 @@ export default function FarmerDashboard() {
             {orders.slice(0, 4).map((order) => (
               <TR key={order.id}>
                 <TD className="font-semibold text-ink">{order.id}</TD>
-                <TD>{order.items.map((i) => i.name).join(", ")}</TD>
+                <TD>{(order.items || []).map((i) => i.name).join(", ") || "—"}</TD>
                 <TD className="font-bold text-ink">{formatPrice(order.total)}</TD>
                 <TD className="text-subtle">{formatDate(order.date)}</TD>
                 <TD><StatusChip status={order.status} /></TD>
@@ -176,6 +181,11 @@ export default function FarmerDashboard() {
             ))}
           </tbody>
         </Table>
+        {orders.length === 0 && (
+          <p className="px-6 py-8 text-center text-sm text-subtle">
+            No orders yet — they'll appear here once buyers place them.
+          </p>
+        )}
       </div>
 
       {/* Quick actions */}
@@ -205,11 +215,16 @@ export default function FarmerDashboard() {
             <div key={product.id} className="rounded-card bg-bg p-4">
               <p className="truncate text-sm font-semibold text-ink">{product.name}</p>
               <p className="mt-0.5 text-xs text-subtle">
-                {product.quantity.toLocaleString()} kg · {product.price}/kg
+                {(product.quantity || 0).toLocaleString()} kg · {formatPrice(product.price)}/kg
               </p>
               <ProgressBar value={product.stock} className="mt-3" label="Stock" />
             </div>
           ))}
+          {storeProducts.length === 0 && (
+            <p className="rounded-card border border-dashed border-line bg-bg px-4 py-6 text-center text-sm text-subtle sm:col-span-2 lg:col-span-4">
+              Add a listing to start tracking your stock here.
+            </p>
+          )}
         </div>
       </div>
     </DashboardLayout>

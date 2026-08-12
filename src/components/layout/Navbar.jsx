@@ -6,7 +6,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   ShoppingCart,
-} from "lucide-react";
+} from "../../lib/fa";
 import { useState } from "react";
 import { cx } from "../../lib/utils";
 import { Button } from "../ui/core";

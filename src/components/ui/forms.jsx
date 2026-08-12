@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Search, Eye, EyeOff } from "lucide-react";
+import { Search, Eye, EyeOff } from "../../lib/fa";
 import { cx } from "../../lib/utils";
 
 /* ---------------- Field wrapper ---------------- */

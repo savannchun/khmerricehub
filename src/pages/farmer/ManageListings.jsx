@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, LayoutGrid, List, Pencil, Copy, Trash2 } from "lucide-react";
+import { Plus, LayoutGrid, List, Pencil, Copy, Trash2 } from "../../lib/fa";
 import { DashboardLayout } from "../../components/layout/DashboardLayout.jsx";
 import { Button, IconButton } from "../../components/ui/core.jsx";
 import { SearchBar } from "../../components/ui/forms.jsx";
@@ -20,16 +20,20 @@ import {
 } from "../../components/ui/display.jsx";
 import { Dialog, useToast } from "../../components/ui/overlays.jsx";
 import { RiceCard } from "../../components/cards.jsx";
-import { NAV_FARMER, RICE_LISTINGS as DEMO_LISTINGS } from "../../lib/data.js";
-import { getListings } from "../../lib/services.js";
+import { NAV_FARMER } from "../../lib/data.js";
+import { addListing, deleteListing, getListings } from "../../lib/services.js";
 import { useAsyncData } from "../../lib/useAsyncData.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { formatPrice } from "../../lib/utils.js";
 
-const statusFor = (listing, i) =>
-  i === 0 ? "Sold Out" : listing.status === "Draft" ? "Draft" : "Published";
-
 export default function ManageListings() {
-  const [listings, setListings] = useAsyncData(getListings, DEMO_LISTINGS);
+  const { user } = useAuth();
+  const loadMine = async () => {
+    if (!user) return [];
+    const all = await getListings();
+    return all.filter((l) => l.farmerId === user.uid);
+  };
+  const [listings, setListings] = useAsyncData(loadMine, [], [user?.uid]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
   const [view, setView] = useState("table");
@@ -39,7 +43,7 @@ export default function ManageListings() {
   const navigate = useNavigate();
 
   const displayListings = useMemo(
-    () => listings.map((listing, i) => ({ ...listing, status: statusFor(listing, i) })),
+    () => listings.map((listing) => ({ ...listing, status: listing.status || "Published" })),
     [listings],
   );
 
@@ -57,17 +61,31 @@ export default function ManageListings() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const duplicate = (item) => {
-    setListings((list) => [
-      { ...item, id: `${item.id}-copy`, name: `${item.name} (Copy)`, status: "Draft" },
-      ...list,
-    ]);
+  const duplicate = async (item) => {
+    const copy = {
+      ...item,
+      name: `${item.name} (Copy)`,
+      status: "Draft",
+      stock: 0,
+      createdAt: new Date().toISOString(),
+    };
+    const result = await addListing(copy);
+    if (!result.ok) {
+      toast.error("Could not duplicate listing", "Check your connection and try again.");
+      return;
+    }
+    setListings((list) => [{ ...copy, id: result.id }, ...list]);
     toast.success("Listing duplicated", "A draft copy was created.");
   };
 
-  const confirmDelete = () => {
-    setListings((list) => list.filter((l) => l.id !== deleteTarget.id));
+  const confirmDelete = async () => {
+    const ok = await deleteListing(deleteTarget.id);
     setDeleteTarget(null);
+    if (!ok) {
+      toast.error("Could not delete listing", "Check your connection and try again.");
+      return;
+    }
+    setListings((list) => list.filter((l) => l.id !== deleteTarget.id));
     toast.success("Listing deleted", `${deleteTarget.name} was removed.`);
   };
 

@@ -11,7 +11,7 @@ import {
   Phone,
   Send,
   Share2,
-} from "lucide-react";
+} from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button, Reveal } from "../components/ui/core";
 import { Input, Select, Textarea } from "../components/ui/forms";

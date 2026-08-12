@@ -11,7 +11,7 @@ import {
   Clock,
   Paperclip,
   FileText,
-} from "lucide-react";
+} from "../lib/fa";
 import { cx, formatDate, formatPrice, timeAgo } from "../lib/utils";
 import { Avatar, Rating, StatusChip, Badge } from "./ui/display";
 import { Button, IconButton } from "./ui/core";

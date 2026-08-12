@@ -5,7 +5,7 @@ import {
   UserCheck,
   UserX,
   Trash2,
-} from "lucide-react";
+} from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button } from "../../components/ui/core";

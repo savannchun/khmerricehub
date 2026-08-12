@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { X, Plus, Eye, Trash2, Archive } from "lucide-react";
+import { X, Plus, Eye, Trash2, Archive } from "../../lib/fa";
 import { DashboardLayout } from "../../components/layout/DashboardLayout.jsx";
 import { Button } from "../../components/ui/core.jsx";
 import { Breadcrumb } from "../../components/ui/display.jsx";
@@ -8,55 +8,76 @@ import { Input, Textarea, Select } from "../../components/ui/forms.jsx";
 import { Dialog, Modal, useToast } from "../../components/ui/overlays.jsx";
 import { RiceCard } from "../../components/cards.jsx";
 import { NAV_FARMER, PROVINCES, RICE_TYPES, CATEGORIES, RICE_IMAGES } from "../../lib/data.js";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { deleteListing, getListing, updateListing } from "../../lib/services.js";
+
+function specsToObject(specs) {
+  return Object.fromEntries(
+    specs
+      .filter((spec) => spec.key && String(spec.value).trim() !== "")
+      .map((spec) => [spec.key.trim(), spec.value.trim()]),
+  );
+}
+
+const emptyForm = {
+  name: "",
+  type: "Fragrant Rice",
+  category: "Fragrant Rice",
+  province: "Battambang",
+  district: "",
+  price: "",
+  quantity: "",
+  description: "",
+  specs: [],
+};
 
 export default function EditListing() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
 
-  const [listing] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("krh_draft_listing"));
-      if (stored && stored.id === id) return stored;
-    } catch {
-      /* ignore */
-    }
-    return {
-      id: id || "r1",
-      name: "Premium Jasmine Rice",
-      type: "Jasmine Rice",
-      category: "Jasmine Rice",
-      province: "Battambang",
-      district: "Banan",
-      price: 1.25,
-      quantity: 2500,
-      description:
-        "Aromatic long-grain jasmine rice harvested from a single 2026 season crop. Naturally fragrant with a soft, fluffy texture.",
-      specs: [
-        { key: "Harvest season", value: "2026 (rainy season)" },
-        { key: "Grain length", value: "7.1 mm" },
-        { key: "Moisture", value: "13.5%" },
-        { key: "Purity", value: "95%" },
-      ],
-      image: RICE_IMAGES[0],
-    };
-  });
-
-  const [images, setImages] = useState([{ name: "cover.jpg", src: listing.image || RICE_IMAGES[0] }]);
-  const [form, setForm] = useState({
-    name: listing.name,
-    type: listing.type,
-    category: listing.category || listing.type,
-    province: listing.province,
-    district: listing.district,
-    price: listing.price,
-    quantity: listing.quantity,
-    description: listing.description,
-    specs: listing.specs,
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [images, setImages] = useState([{ name: "cover.jpg", src: RICE_IMAGES[0] }]);
   const [errors, setErrors] = useState({});
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getListing(id).then((doc) => {
+      if (!active) return;
+      if (!doc) {
+        toast.error("Listing not found", "This listing may have been deleted.");
+        navigate("/farmer/listings");
+        return;
+      }
+      if (doc.farmerId && user && doc.farmerId !== user.uid) {
+        toast.error("Not your listing", "You can only edit your own products.");
+        navigate("/farmer/listings");
+        return;
+      }
+      setForm({
+        name: doc.name || "",
+        type: doc.type || "Fragrant Rice",
+        category: doc.category || doc.type || "Fragrant Rice",
+        province: doc.province || "Battambang",
+        district: doc.district || "",
+        price: doc.price ?? "",
+        quantity: doc.quantity ?? "",
+        description: doc.description || "",
+        specs: Object.entries(doc.specs || {}).map(([key, value]) => ({ key, value })),
+      });
+      setImages([{ name: "cover.jpg", src: doc.image || RICE_IMAGES[0] }]);
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -69,31 +90,55 @@ export default function EditListing() {
     return Object.keys(next).length === 0;
   };
 
-  const update = () => {
+  const update = async () => {
     if (!validate()) {
       toast.error("Missing information", "Please fill in the required fields.");
       return;
     }
-    localStorage.setItem(
-      "krh_draft_listing",
-      JSON.stringify({
-        ...listing,
-        ...form,
-        price: Number(form.price),
-        quantity: Number(form.quantity),
-        image: images[0]?.src,
-      }),
-    );
+    setSaving(true);
+    const result = await updateListing(id, {
+      ...form,
+      price: Number(form.price) || 0,
+      quantity: Number(form.quantity) || 0,
+      specs: specsToObject(form.specs),
+      image: images[0]?.src,
+      gallery: [images[0]?.src],
+      updatedAt: new Date().toISOString(),
+    });
+    setSaving(false);
+    if (!result.ok) {
+      toast.error("Could not update listing", "Check your connection and try again.");
+      return;
+    }
     toast.success("Listing updated", `${form.name} changes have been saved.`);
   };
 
-  const archive = () => {
+  const archive = async () => {
+    const result = await updateListing(id, {
+      status: "Draft",
+      updatedAt: new Date().toISOString(),
+    });
+    if (!result.ok) {
+      toast.error("Could not archive listing", "Check your connection and try again.");
+      return;
+    }
     toast.info("Listing archived", `${form.name} was moved to archive.`);
     navigate("/farmer/listings");
   };
 
+  const remove = async () => {
+    setDeleteOpen(false);
+    const ok = await deleteListing(id);
+    if (!ok) {
+      toast.error("Could not delete listing", "Check your connection and try again.");
+      return;
+    }
+    toast.success("Listing deleted", `${form.name} was removed.`);
+    navigate("/farmer/listings");
+  };
+
   const previewItem = {
-    id: listing.id,
+    id,
     name: form.name || "Your rice name",
     type: form.type,
     province: form.province,
@@ -101,13 +146,27 @@ export default function EditListing() {
     price: Number(form.price) || 0,
     quantity: Number(form.quantity) || 0,
     unit: "kg",
-    farmer: "Sokha Farm",
-    rating: 4.9,
-    reviews: 214,
+    farmer: user?.name || "Your store",
+    rating: 0,
+    reviews: 0,
     organic: false,
     status: "Published",
     image: images[0]?.src || RICE_IMAGES[0],
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout
+        nav={NAV_FARMER}
+        title="Edit Listing"
+        subtitle="Loading your rice product…"
+        notificationPath="/farmer/notifications"
+        accent="bg-primary-dark"
+      >
+        <p className="text-sm text-subtle">Loading listing…</p>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -242,7 +301,7 @@ export default function EditListing() {
           </div>
 
           <div className="card flex flex-col gap-3 p-5">
-            <Button onClick={update}>Update listing</Button>
+            <Button onClick={update} loading={saving}>Update listing</Button>
             <Button variant="secondary" icon={Archive} onClick={archive}>
               Archive
             </Button>
@@ -260,11 +319,7 @@ export default function EditListing() {
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        onConfirm={() => {
-          setDeleteOpen(false);
-          toast.success("Listing deleted", `${form.name} was removed.`);
-          navigate("/farmer/listings");
-        }}
+        onConfirm={remove}
         title="Delete listing?"
         description={`"${form.name}" will be permanently removed. This action cannot be undone.`}
         confirmLabel="Delete listing"

@@ -1,10 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, MapPin, Package, ShoppingBag, Truck, Wallet } from "lucide-react";
+import { ArrowRight, MapPin, Package, ShoppingBag, Truck, Wallet } from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button } from "../components/ui/core";
-import { RICE_LISTINGS as DEMO_LISTINGS } from "../lib/data";
-import { getListings } from "../lib/services";
-import { useAsyncData } from "../lib/useAsyncData";
 import { formatPrice } from "../lib/utils";
 
 const PAYMENT_LABELS = {
@@ -21,12 +18,9 @@ const DELIVERY_LABELS = {
 export default function OrderSuccess() {
   const location = useLocation();
   const state = location.state || {};
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
 
-  const orderNumber = state.orderNumber || "KRH-1042";
-  const items = state.items?.length
-    ? state.items
-    : listings.slice(0, 2).map((listing) => ({ ...listing, qty: 100 }));
+  const orderNumber = state.orderNumber || "";
+  const items = state.items?.length ? state.items : [];
   const subtotal = state.subtotal ?? items.reduce((sum, item) => sum + item.price * item.qty, 0);
   const deliveryCost = state.deliveryCost ?? 5;
   const discount = state.discount ?? 0;
@@ -83,6 +77,11 @@ export default function OrderSuccess() {
                 <span className="text-sm font-bold text-ink">{formatPrice(item.price * item.qty)}</span>
               </div>
             ))}
+            {items.length === 0 && (
+              <p className="py-6 text-center text-sm text-subtle">
+                Order details are unavailable — check your order history for the full receipt.
+              </p>
+            )}
           </div>
           <div className="space-y-3 px-6 py-5">
             <div className="flex items-center justify-between text-sm text-subtle">

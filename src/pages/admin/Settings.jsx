@@ -18,7 +18,7 @@ import {
   Smartphone,
   Trash2,
   Upload,
-} from "lucide-react";
+} from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button } from "../../components/ui/core";

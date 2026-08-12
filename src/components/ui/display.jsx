@@ -1,13 +1,14 @@
 import { useState } from "react";
 import {
-  Star,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   TrendingUp,
   TrendingDown,
   MoreHorizontal,
-} from "lucide-react";
+  FaStar,
+  FaStarOutline,
+} from "../../lib/fa";
 import { cx, initials } from "../../lib/utils";
 import { IconButton } from "./core";
 
@@ -176,33 +177,29 @@ export function Rating({ value, showValue, className, onRate }) {
                 aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
                 className="transition-transform hover:scale-125"
               >
-                <Star
-                  className="h-[18px] w-[18px]"
-                  style={{ color: "#f9a825" }}
-                  fill={star <= value ? "#f9a825" : "transparent"}
-                />
+                {star <= value ? (
+                  <FaStar className="h-[18px] w-[18px] text-gold" />
+                ) : (
+                  <FaStarOutline className="h-[18px] w-[18px] text-gold" />
+                )}
               </button>
             );
           }
           if (fill === "half") {
             return (
               <span key={star} className="relative inline-flex">
-                <Star className="h-[16px] w-[16px] text-line-dark" fill="#e2e8f0" />
-                <Star
+                <FaStarOutline className="h-[16px] w-[16px] text-line-dark" />
+                <FaStar
                   className="absolute inset-0 h-[16px] w-[16px] text-gold"
-                  fill="#f9a825"
                   style={{ clipPath: "inset(0 50% 0 0)" }}
                 />
               </span>
             );
           }
-          return (
-            <Star
-              key={star}
-              className="h-[16px] w-[16px]"
-              style={{ color: "#f9a825" }}
-              fill={fill === "full" ? "#f9a825" : "transparent"}
-            />
+          return fill === "full" ? (
+            <FaStar key={star} className="h-[16px] w-[16px] text-gold" />
+          ) : (
+            <FaStarOutline key={star} className="h-[16px] w-[16px] text-gold" />
           );
         })}
       </span>

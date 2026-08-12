@@ -13,7 +13,7 @@ import {
   AlertTriangle,
   Info,
   XCircle,
-} from "lucide-react";
+} from "../../lib/fa";
 import { cx } from "../../lib/utils";
 
 /* ==================== Modal ==================== */

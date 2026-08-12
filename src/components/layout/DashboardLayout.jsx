@@ -18,7 +18,7 @@ import {
   Menu,
   Search,
   ChevronDown,
-} from "lucide-react";
+} from "../../lib/fa";
 import { cx } from "../../lib/utils";
 import { Logo } from "./Navbar";
 import { Avatar, Badge } from "../ui/display";

@@ -20,7 +20,10 @@ function userFromFirebase(firebaseUser) {
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email,
-    name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "KhmerRiceHub user",
+    name:
+      firebaseUser.displayName ||
+      firebaseUser.email?.split("@")[0] ||
+      "KhmerRiceHub user",
     photoURL: firebaseUser.photoURL,
     role: "buyer",
     demo: false,
@@ -83,21 +86,42 @@ export function AuthProvider({ children }) {
     try {
       await setDoc(
         doc(db, "users", firebaseUser.uid),
-        { email: firebaseUser.email, ...profile, updatedAt: new Date().toISOString() },
+        {
+          email: firebaseUser.email,
+          ...profile,
+          updatedAt: new Date().toISOString(),
+        },
         { merge: true },
       );
     } catch (err) {
-      console.warn("[auth] Could not save user profile to Firestore (rules may block writes).", err);
+      console.error("[auth] Could not save user profile to Firestore:", err);
+      throw err;
     }
   };
 
   const login = async (email, password) => {
     const credential = await signInWithEmailAndPassword(auth, email, password);
-    return userFromFirebase(credential.user);
+    try {
+      const profile = await getDoc(doc(db, "users", credential.user.uid));
+      const data = profile.exists() ? profile.data() : {};
+      const base = userFromFirebase(credential.user);
+      return {
+        ...base,
+        name: data.name || base.name,
+        role: data.role || "buyer",
+        phone: data.phone || "",
+      };
+    } catch {
+      return userFromFirebase(credential.user);
+    }
   };
 
   const register = async ({ name, email, phone, password, role }) => {
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    const credential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password,
+    );
     await updateProfile(credential.user, { displayName: name });
     await persistProfile(credential.user, { name, phone, role });
     setUser({
@@ -151,7 +175,15 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, initializing, login, register, googleSignIn, demoLogin, logout }}
+      value={{
+        user,
+        initializing,
+        login,
+        register,
+        googleSignIn,
+        demoLogin,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

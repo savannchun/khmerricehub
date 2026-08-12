@@ -8,7 +8,7 @@ import {
   SearchX,
   ShoppingBag,
   Truck,
-} from "lucide-react";
+} from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button, IconButton } from "../../components/ui/core";
@@ -27,24 +27,19 @@ import {
 import { Dialog, Modal, useToast } from "../../components/ui/overlays";
 import { SearchBar, Select } from "../../components/ui/forms";
 import { formatDate, formatPrice } from "../../lib/utils";
-import { NAV_ADMIN, ORDERS as DEMO_ORDERS } from "../../lib/data";
-import { getOrders } from "../../lib/services";
+import { NAV_ADMIN } from "../../lib/data";
+import { getOrders, updateOrderStatus } from "../../lib/services";
 import { useAsyncData } from "../../lib/useAsyncData";
-
-const BUYERS = {
-  "KRH-1042": "Dara K.",
-  "KRH-1029": "Nita V.",
-  "KRH-1015": "Sopheak L.",
-  "KRH-1009": "Chenda R.",
-};
 
 const ORDER_STATUSES = ["Processing", "Shipped", "Delivered", "Completed", "Refunded", "Canceled"];
 
 const PAGE_SIZE = 3;
 
+const buyerFor = (order) => order?.buyerName || order?.buyer || "Buyer";
+
 export default function OrderManagement() {
   const toast = useToast();
-  const [orders, setOrders] = useAsyncData(getOrders, DEMO_ORDERS);
+  const [orders, setOrders] = useAsyncData(getOrders, []);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All");
   const [page, setPage] = useState(1);
@@ -54,7 +49,7 @@ export default function OrderManagement() {
   const counts = useMemo(
     () => ({
       total: orders.length,
-      pending: orders.filter((o) => o.status === "Processing" || o.status === "Pending").length,
+      pending: orders.filter((o) => o.status === "Processing" || o.status === "Pending" || o.status === "New").length,
       shipped: orders.filter((o) => o.status === "Shipped").length,
       delivered: orders.filter((o) => o.status === "Delivered" || o.status === "Completed").length,
       refunds: orders.filter((o) => o.status === "Refunded").length,
@@ -65,13 +60,13 @@ export default function OrderManagement() {
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     return orders.filter((order) => {
-      const buyer = BUYERS[order.id] || "Buyer";
+      const buyer = buyerFor(order);
       const matchesStatus = status === "All" || order.status === status;
       const matchesQuery =
         !term ||
         order.id.toLowerCase().includes(term) ||
         buyer.toLowerCase().includes(term) ||
-        order.items.some((item) => item.name.toLowerCase().includes(term));
+        (order.items || []).some((item) => item.name.toLowerCase().includes(term));
       return matchesStatus && matchesQuery;
     });
   }, [orders, query, status]);
@@ -79,13 +74,18 @@ export default function OrderManagement() {
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const updateStatus = (id, next) => {
+  const updateStatus = async (id, next) => {
+    const ok = await updateOrderStatus(id, next);
+    if (!ok) {
+      toast.error("Could not update order", "Check your connection and try again.");
+      return;
+    }
     setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status: next } : order)));
   };
 
-  const confirmRefund = () => {
-    updateStatus(refundTarget.id, "Refunded");
-    toast.success("Refund issued", `${refundTarget.id} was refunded to ${BUYERS[refundTarget.id] || "the buyer"}.`);
+  const confirmRefund = async () => {
+    await updateStatus(refundTarget.id, "Refunded");
+    toast.success("Refund issued", `${refundTarget.id} was refunded to ${buyerFor(refundTarget)}.`);
     setRefundTarget(null);
   };
 
@@ -197,7 +197,7 @@ export default function OrderManagement() {
               </THead>
               <tbody>
                 {pageItems.map((order) => {
-                  const buyer = BUYERS[order.id] || "Buyer";
+                  const buyer = buyerFor(order);
                   return (
                     <TR key={order.id}>
                       <TD className="whitespace-nowrap font-display text-sm font-bold text-ink">
@@ -207,7 +207,7 @@ export default function OrderManagement() {
                       <TD className="whitespace-nowrap text-subtle">{formatDate(order.date)}</TD>
                       <TD className="max-w-[220px]">
                         <p className="truncate text-subtle">
-                          {order.items.map((item) => item.name).join(", ")}
+                          {(order.items || []).map((item) => item.name).join(", ") || "—"}
                         </p>
                       </TD>
                       <TD className="whitespace-nowrap font-bold text-ink">
@@ -266,7 +266,7 @@ export default function OrderManagement() {
         onClose={() => setRefundTarget(null)}
         onConfirm={confirmRefund}
         title="Issue a refund?"
-        description={`A refund of ${formatPrice(refundTarget?.total || 0)} will be sent to ${BUYERS[refundTarget?.id] || "the buyer"} for ${refundTarget?.id}.`}
+        description={`A refund of ${formatPrice(refundTarget?.total || 0)} will be sent to ${buyerFor(refundTarget)} for ${refundTarget?.id}.`}
         confirmLabel="Confirm refund"
         variant="info"
       />
@@ -275,7 +275,7 @@ export default function OrderManagement() {
         open={!!viewing}
         onClose={() => setViewing(null)}
         title={viewing?.id}
-        description={`Placed on ${viewing ? formatDate(viewing.date) : ""} by ${BUYERS[viewing?.id] || "Buyer"}`}
+        description={`Placed on ${viewing ? formatDate(viewing.date) : ""} by ${buyerFor(viewing)}`}
         size="lg"
         footer={
           <Button variant="secondary" onClick={() => setViewing(null)}>
@@ -291,7 +291,7 @@ export default function OrderManagement() {
                 <StatusChip status={viewing.status} />
               </div>
               <ul className="mt-3 divide-y divide-line rounded-xl border border-line">
-                {viewing.items.map((item, i) => (
+                {(viewing.items || []).map((item, i) => (
                   <li key={i} className="flex items-center justify-between gap-3 p-3.5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
@@ -316,7 +316,7 @@ export default function OrderManagement() {
             <div>
               <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Tracking</h3>
               <div className="mt-3 rounded-xl border border-line p-4">
-                <Timeline items={viewing.tracking} />
+                <Timeline items={viewing.tracking || []} />
               </div>
             </div>
           </div>

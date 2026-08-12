@@ -11,15 +11,16 @@ import {
   Tag,
   Truck,
   Wallet,
-} from "lucide-react";
+} from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button, Reveal } from "../components/ui/core";
 import { Input, RadioGroup, Select, Textarea } from "../components/ui/forms";
-import { Breadcrumb } from "../components/ui/display";
+import { Breadcrumb, EmptyState } from "../components/ui/display";
 import { useToast } from "../components/ui/overlays";
-import { PROVINCES, RICE_LISTINGS as DEMO_LISTINGS } from "../lib/data";
+import { PROVINCES } from "../lib/data";
 import { createOrder, getListings } from "../lib/services";
 import { useAsyncData } from "../lib/useAsyncData";
+import { useAuth } from "../context/AuthContext.jsx";
 import { formatPrice } from "../lib/utils";
 
 const DELIVERY_OPTIONS = [
@@ -36,17 +37,20 @@ const PAYMENT_OPTIONS = [
 export default function Checkout() {
   const [params] = useSearchParams();
   const requestedId = params.get("item");
+  const requestedQty = Math.max(1, Number(params.get("qty")) || 100);
   const navigate = useNavigate();
   const toast = useToast();
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
+  const { user } = useAuth();
+  const [listings] = useAsyncData(getListings, []);
 
   const items = useMemo(() => {
     if (requestedId) {
       const match = listings.find((listing) => listing.id === requestedId);
-      if (match) return [{ ...match, qty: 100 }];
+      if (match) return [{ ...match, qty: requestedQty }];
+      return [];
     }
-    return listings.slice(0, 2).map((listing) => ({ ...listing, qty: 100 }));
-  }, [requestedId, listings]);
+    return listings.slice(0, 1).map((listing) => ({ ...listing, qty: 100 }));
+  }, [requestedId, requestedQty, listings]);
 
   const [shipping, setShipping] = useState({ fullName: "", phone: "", province: "", district: "", address: "" });
   const [delivery, setDelivery] = useState("standard");
@@ -84,6 +88,11 @@ export default function Checkout() {
 
   const placeOrder = async (e) => {
     e.preventDefault();
+    if (!user) {
+      toast.error("Sign in required", "Please log in to place an order.");
+      navigate("/login");
+      return;
+    }
     if (!shipping.fullName || !shipping.phone) {
       toast.error("Shipping details missing", "Please add your name and phone number.");
       return;
@@ -95,16 +104,21 @@ export default function Checkout() {
     setPlacing(true);
     const orderNumber = `KRH-${Math.floor(1000 + Math.random() * 9000)}`;
     const today = new Date().toISOString().slice(0, 10);
-    await createOrder({
+    const result = await createOrder({
       orderNumber,
       date: today,
       status: "Processing",
-      items: items.map(({ id, name, qty, price }) => ({
+      buyerId: user.uid,
+      buyerName: user.name || user.displayName || shipping.fullName,
+      items: items.map(({ id, name, qty, price, farmerId, farmer }) => ({
         listingId: id,
         name,
         qty,
         unitPrice: price,
+        farmerId: farmerId || null,
+        farmer: farmer || "Farmer",
       })),
+      farmerId: items[0]?.farmerId || null,
       total,
       payment: payment === "cod" ? "Pending" : "Paid",
       delivery,
@@ -116,6 +130,11 @@ export default function Checkout() {
         { label: "Delivered", date: null, done: false },
       ],
     });
+    setPlacing(false);
+    if (!result.ok) {
+      toast.error("Could not place order", "Check your connection and try again.");
+      return;
+    }
     toast.success("Order placed!", "Your harvest is being prepared by the farm.");
     navigate("/order-success", {
       state: {
@@ -130,7 +149,6 @@ export default function Checkout() {
         address: `${shipping.address || shipping.district || shipping.province || "Phnom Penh"}`,
       },
     });
-    setPlacing(false);
   };
 
   return (
@@ -156,7 +174,21 @@ export default function Checkout() {
           </div>
         </div>
 
-        <form onSubmit={placeOrder} className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_380px]">
+        {items.length === 0 ? (
+          <div className="mt-8">
+            <EmptyState
+              icon={Package}
+              title="Nothing to check out"
+              description="This rice listing isn't available right now. Pick another harvest from the marketplace."
+              action={
+                <Button as={Link} to="/marketplace">
+                  Back to marketplace
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <form onSubmit={placeOrder} className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_380px]">
           <div className="space-y-8">
             <Reveal className="card p-7 sm:p-8">
               <h2 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
@@ -351,7 +383,8 @@ export default function Checkout() {
               Payments are encrypted and secure
             </p>
           </Reveal>
-        </form>
+          </form>
+        )}
       </main>
 
       <Footer />

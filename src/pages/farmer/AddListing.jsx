@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { UploadCloud, X, Plus, Eye } from "lucide-react";
+import { UploadCloud, X, Plus, Eye } from "../../lib/fa";
 import { DashboardLayout } from "../../components/layout/DashboardLayout.jsx";
 import { Button } from "../../components/ui/core.jsx";
 import { Breadcrumb } from "../../components/ui/display.jsx";
@@ -8,6 +8,8 @@ import { Input, Textarea, Select } from "../../components/ui/forms.jsx";
 import { Modal, useToast } from "../../components/ui/overlays.jsx";
 import { RiceCard } from "../../components/cards.jsx";
 import { NAV_FARMER, PROVINCES, RICE_TYPES, CATEGORIES, RICE_IMAGES } from "../../lib/data.js";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { addListing } from "../../lib/services.js";
 
 function UploadArea({ images, onAdd, onRemove }) {
   const inputRef = useRef(null);
@@ -17,7 +19,7 @@ function UploadArea({ images, onAdd, onRemove }) {
     const fileList = Array.from(files);
     fileList.forEach((file) => {
       if (file.type.startsWith("image/")) {
-        onAdd({ name: file.name, src: URL.createObjectURL(file) });
+        onAdd({ name: file.name, src: URL.createObjectURL(file), file });
       }
     });
   };
@@ -105,13 +107,49 @@ const emptyForm = {
   ],
 };
 
+// Specs are edited as an array of { key, value }, but stored as an object
+// { key: value } to match the existing listing schema.
+function specsToObject(specs) {
+  return Object.fromEntries(
+    specs
+      .filter((spec) => spec.key && String(spec.value).trim() !== "")
+      .map((spec) => [spec.key.trim(), spec.value.trim()]),
+  );
+}
+
+// Downscales an uploaded image to a compact JPEG data URL so it can be stored
+// inside the listing document without needing Firebase Storage.
+function fileToDataUrl(file, maxSize = 900) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+      img.onerror = () => resolve(reader.result);
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AddListing() {
   const [form, setForm] = useState(emptyForm);
-  const [images, setImages] = useState([{ name: "jasmine-sample.jpg", src: RICE_IMAGES[0] }]);
+  const [images, setImages] = useState([{ name: "sample-cover.jpg", src: RICE_IMAGES[0] }]);
   const [errors, setErrors] = useState({});
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   const setSpec = (index, field) => (e) =>
@@ -130,15 +168,54 @@ export default function AddListing() {
     return Object.keys(next).length === 0;
   };
 
-  const submit = (action) => {
+  const submit = async (action) => {
     if (!validate()) {
       toast.error("Missing information", "Please fill in the required fields.");
       return;
     }
+    if (!user) {
+      toast.error("Not signed in", "Please log in as a farmer before adding a listing.");
+      navigate("/login");
+      return;
+    }
+
+    setSaving(true);
+    let image = images[0]?.src || RICE_IMAGES[0];
+    if (images[0]?.file) {
+      const dataUrl = await fileToDataUrl(images[0].file);
+      if (dataUrl) image = dataUrl;
+    }
+
+    const listing = {
+      farmerId: user.uid,
+      farmer: user.name || "Farmer",
+      name: form.name.trim(),
+      type: form.type,
+      category: form.category,
+      province: form.province,
+      district: form.district.trim(),
+      price: Number(form.price) || 0,
+      quantity: Number(form.quantity) || 0,
+      unit: "kg",
+      description: form.description.trim(),
+      specs: specsToObject(form.specs),
+      image,
+      gallery: [image],
+      status: action === "publish" ? "Published" : "Draft",
+      stock: 100,
+      createdAt: new Date().toISOString(),
+    };
+
+    const result = await addListing(listing);
+    setSaving(false);
+    if (!result.ok) {
+      toast.error("Could not save listing", "Check your connection and try again.");
+      return;
+    }
     if (action === "publish") {
-      toast.success("Listing published", `${form.name} is now live on the marketplace.`);
+      toast.success("Listing published", `${listing.name} is now live on the marketplace.`);
     } else {
-      toast.success("Draft saved", `${form.name} was saved as a draft.`);
+      toast.success("Draft saved", `${listing.name} was saved as a draft.`);
     }
     navigate("/farmer/listings");
   };
@@ -152,9 +229,9 @@ export default function AddListing() {
     price: Number(form.price) || 0,
     quantity: Number(form.quantity) || 0,
     unit: "kg",
-    farmer: "Sokha Farm",
-    rating: 4.9,
-    reviews: 214,
+    farmer: user?.name || "Your store",
+    rating: 0,
+    reviews: 0,
     organic: false,
     status: "Published",
     image: images[0]?.src || RICE_IMAGES[0],
@@ -280,10 +357,12 @@ export default function AddListing() {
           </div>
 
           <div className="card flex flex-col gap-3 p-5">
-            <Button variant="ghost" onClick={() => submit("draft")}>
+            <Button variant="ghost" onClick={() => submit("draft")} disabled={saving}>
               Save draft
             </Button>
-            <Button onClick={() => submit("publish")}>Publish listing</Button>
+            <Button onClick={() => submit("publish")} loading={saving}>
+              Publish listing
+            </Button>
             <Button as={Link} to="/farmer/listings" variant="secondary">
               Cancel
             </Button>

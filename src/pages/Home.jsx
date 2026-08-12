@@ -1,25 +1,32 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  AppleWhole,
   ArrowRight,
+  Award,
   BadgeCheck,
+  BowlRice,
   CheckCircle2,
   HandCoins,
   Leaf,
   Mail,
+  MapPin,
   MessageSquare,
+  Mound,
   Quote,
   Search,
-  ShieldCheck,
+  Seedling,
   Sparkles,
   Star,
+  Tractor,
   Truck,
   Wheat,
-} from "lucide-react";
-import { Navbar, Footer, HeroSearch } from "../components/layout/Navbar";
+} from "../lib/fa";
+import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button, Reveal } from "../components/ui/core";
 import { Chip, Rating } from "../components/ui/display";
 import { RiceCard, FarmerCard } from "../components/cards";
+import farmerSunset from "../assets/farmers/farmer-sunset.jpg";
 import { useToast } from "../components/ui/overlays";
 import {
   CATEGORIES,
@@ -27,7 +34,6 @@ import {
   HERO_IMAGE,
   PARTNERS,
   PLATFORM_STATS,
-  RICE_LISTINGS as DEMO_LISTINGS,
   TESTIMONIALS,
 } from "../lib/data";
 import { getFarmers, getListings } from "../lib/services";
@@ -74,11 +80,22 @@ const STEPS = [
   },
 ];
 
-const TRUST = [
-  { icon: BadgeCheck, label: "Verified farmers" },
-  { icon: ShieldCheck, label: "Secure payments" },
-  { icon: Star, label: "Quality assured" },
+const HERO_STATS = [
+  { icon: Tractor, value: "2,500+", label: "Farmers" },
+  { icon: Wheat, value: "500+", label: "Rice Listings" },
+  { icon: MapPin, value: "18", label: "Provinces" },
+  { icon: Star, value: "4.9", label: "Customer Rating" },
 ];
+
+const CATEGORY_ICONS = {
+  fragrant: Wheat,
+  jasmine: Seedling,
+  organic: Leaf,
+  white: BowlRice,
+  glutinous: Mound,
+  red: AppleWhole,
+  specialty: Award,
+};
 
 const published = (listings) => listings.filter((l) => l.status === "Published");
 
@@ -87,7 +104,7 @@ export default function Home() {
   const [favorites, setFavorites] = useState(() => new Set());
   const [email, setEmail] = useState("");
   const toast = useToast();
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
+  const [listings] = useAsyncData(getListings, []);
   const [farmers] = useAsyncData(getFarmers, DEMO_FARMERS);
 
   const toggleFavorite = (item) => {
@@ -125,45 +142,73 @@ export default function Home() {
 
       <section className="relative isolate overflow-hidden bg-primary-dark">
         <img
-          src={HERO_IMAGE}
-          alt="A Cambodian rice field at golden hour"
-          className="absolute inset-0 h-full w-full object-cover"
+          src={farmerSunset}
+          alt="A Cambodian rice farmer standing in a lush green field at golden hour"
+          className="absolute inset-0 h-full w-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-dark/95 via-primary-dark/85 to-ink/85" />
-        <div className="relative mx-auto max-w-7xl px-5 py-24 sm:py-32 lg:px-8 lg:py-36">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-white ring-1 ring-white/20 backdrop-blur">
-            <Wheat className="h-4 w-4 text-gold" aria-hidden />
-            Cambodia's trusted rice marketplace
-          </span>
-          <h1 className="mt-6 max-w-2xl font-display text-4xl font-bold leading-[1.1] text-white sm:text-5xl lg:text-6xl">
-            From Cambodia's fields to your table.
-          </h1>
-          <p className="mt-5 max-w-xl text-lg leading-8 text-green-50/85">
-            Buy premium rice directly from verified Cambodian farmers. Transparent
-            pricing, quality you can trace, and delivery anywhere in the country.
-          </p>
-          <HeroSearch className="mt-9 max-w-2xl" />
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Button as={Link} to="/marketplace" variant="gold" size="lg" icon={ArrowRight}>
-              Browse marketplace
-            </Button>
-            <Button
-              as={Link}
-              to="/register"
-              variant="white"
-              size="lg"
-              className="bg-white/10 text-white ring-1 ring-white/25 hover:bg-white hover:text-primary"
-            >
-              For farmers
-            </Button>
-          </div>
-          <div className="mt-12 flex flex-wrap gap-x-8 gap-y-4">
-            {TRUST.map((item) => (
-              <span key={item.label} className="flex items-center gap-2.5 text-sm font-semibold text-white">
-                <item.icon className="h-5 w-5 text-gold" aria-hidden />
-                {item.label}
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-dark/95 via-primary-dark/60 to-ink/35" />
+        <div className="relative mx-auto max-w-7xl px-5 lg:px-8">
+          <div className="grid items-center gap-14 py-20 sm:py-24 lg:min-h-[calc(100vh-72px)] lg:grid-cols-[1.1fr_0.9fr] lg:gap-12 lg:py-0">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur">
+                <Wheat className="h-4 w-4 text-gold" aria-hidden />
+                Empowering Cambodian Farmers
               </span>
-            ))}
+              <h1 className="mt-6 max-w-2xl font-display text-4xl font-bold leading-[1.08] text-white sm:text-5xl xl:text-6xl">
+                Buy Premium{" "}
+                <span className="inline-block rounded-xl bg-primary-100 px-3 py-0.5 text-primary shadow-float">
+                  Cambodian Rice
+                </span>{" "}
+                Directly From Trusted Farmers
+              </h1>
+              <p className="mt-5 max-w-xl text-lg leading-8 text-green-50/90">
+                Discover fresh, high-quality Cambodian rice sourced directly from verified local
+                farmers. Support sustainable agriculture while enjoying premium products from
+                Cambodia's fertile rice-growing regions.
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Button
+                  as={Link}
+                  to="/marketplace"
+                  variant="gold"
+                  size="lg"
+                  icon={ArrowRight}
+                  className="hover:-translate-y-0.5 hover:shadow-pop"
+                >
+                  Explore Marketplace
+                </Button>
+                <Button
+                  as={Link}
+                  to="/register"
+                  variant="white"
+                  size="lg"
+                  className="bg-white/10 text-white ring-1 ring-white/25 backdrop-blur hover:-translate-y-0.5 hover:bg-white hover:text-primary"
+                >
+                  Become a Seller
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 sm:gap-5">
+              {HERO_STATS.map((stat, index) => (
+                <div
+                  key={stat.label}
+                  className="animate-float rounded-2xl border border-white/20 bg-white/10 p-5 shadow-pop backdrop-blur-md sm:p-6"
+                  style={{ animationDelay: `${index * 0.9}s` }}
+                >
+                  <span
+                    className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 text-gold"
+                    aria-hidden
+                  >
+                    <stat.icon className="h-5 w-5" />
+                  </span>
+                  <p className="mt-4 font-display text-2xl font-bold text-white sm:text-3xl">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-green-50/80">{stat.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -253,7 +298,10 @@ export default function Home() {
                     className="grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-110"
                     style={{ background: `${category.color}1f`, color: category.color }}
                   >
-                    <Wheat className="h-6 w-6" aria-hidden />
+                    {(() => {
+                      const CategoryIcon = CATEGORY_ICONS[category.id] ?? Wheat;
+                      return <CategoryIcon className="h-6 w-6" aria-hidden />;
+                    })()}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-display text-base font-bold text-ink">

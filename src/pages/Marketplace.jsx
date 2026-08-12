@@ -7,26 +7,20 @@ import {
   MapPin,
   Package,
   SlidersHorizontal,
-} from "lucide-react";
+} from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button, IconButton } from "../components/ui/core";
-import {
-  Checkbox,
-  SearchBar,
-  Select,
-  Switch,
-} from "../components/ui/forms";
+import { Checkbox, SearchBar, Select, Switch } from "../components/ui/forms";
 import { EmptyState, Pagination } from "../components/ui/display";
 import { RiceCard } from "../components/cards";
 import { useToast } from "../components/ui/overlays";
-import { PROVINCES, RICE_LISTINGS as DEMO_LISTINGS, RICE_TYPES } from "../lib/data";
+import { PROVINCES, RICE_TYPES } from "../lib/data";
 import { getListings } from "../lib/services";
 import { useAsyncData } from "../lib/useAsyncData";
 import { cx, formatPrice } from "../lib/utils";
 
 const PAGE_SIZE = 9;
-const MAX_PRICE = 2.5;
-
+const MAX_PRICE = 100;
 const QUANTITY_OPTIONS = [
   { value: "all", label: "Any quantity" },
   { value: "100", label: "At least 100 kg" },
@@ -59,7 +53,8 @@ export default function Marketplace() {
   const [page, setPage] = useState(1);
   const [favorites, setFavorites] = useState(() => new Set());
   const toast = useToast();
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
+  const [listings] = useAsyncData(getListings, []);
+  const storeEmpty = listings.length === 0;
 
   const filtered = useMemo(() => {
     let list = listings.filter((item) => item.status === "Published");
@@ -67,29 +62,53 @@ export default function Marketplace() {
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((item) =>
-        [item.name, item.type, item.province, item.district, item.farmer, item.description]
-          .some((field) => (field || "").toLowerCase().includes(q)),
+        [
+          item.name,
+          item.type,
+          item.province,
+          item.district,
+          item.farmer,
+          item.description,
+        ].some((field) => (field || "").toLowerCase().includes(q)),
       );
     }
-    if (provinces.size) list = list.filter((item) => provinces.has(item.province));
+    if (provinces.size)
+      list = list.filter((item) => provinces.has(item.province));
     if (types.size) list = list.filter((item) => types.has(item.type));
-    list = list.filter((item) => item.price >= price[0] && item.price <= price[1]);
-    if (minQty !== "all") list = list.filter((item) => item.quantity >= Number(minQty));
+    list = list.filter(
+      (item) => item.price >= price[0] && item.price <= price[1],
+    );
+    if (minQty !== "all")
+      list = list.filter((item) => item.quantity >= Number(minQty));
     if (inStockOnly) list = list.filter((item) => item.stock > 0);
     if (organicOnly) list = list.filter((item) => item.organic);
 
     const sorted = [...list];
     if (sort === "price-asc") sorted.sort((a, b) => a.price - b.price);
     else if (sort === "price-desc") sorted.sort((a, b) => b.price - a.price);
-    else if (sort === "quantity") sorted.sort((a, b) => b.quantity - a.quantity);
+    else if (sort === "quantity")
+      sorted.sort((a, b) => b.quantity - a.quantity);
     else sorted.sort((a, b) => b.rating - a.rating);
 
     return sorted;
-  }, [listings, query, provinces, types, price, minQty, inStockOnly, organicOnly, sort]);
+  }, [
+    listings,
+    query,
+    provinces,
+    types,
+    price,
+    minQty,
+    inStockOnly,
+    organicOnly,
+    sort,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const currentItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const currentItems = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   const toggleInSet = (setter) => (value) => {
     setter((prev) => {
@@ -151,9 +170,12 @@ export default function Marketplace() {
 
       <section className="border-b border-line bg-surface">
         <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
-          <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">Rice marketplace</h1>
+          <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
+            Rice marketplace
+          </h1>
           <p className="mt-2 max-w-2xl text-subtle">
-            Compare fresh harvests from verified farms across Cambodia. Order by the kilogram.
+            Compare fresh harvests from verified farms across Cambodia. Order by
+            the kilogram.
           </p>
           <SearchBar
             value={query}
@@ -176,7 +198,10 @@ export default function Marketplace() {
         <aside className="card h-fit p-6 lg:sticky lg:top-24">
           <div className="flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 font-display text-base font-bold text-ink">
-              <SlidersHorizontal className="h-4.5 w-4.5 text-primary" aria-hidden />
+              <SlidersHorizontal
+                className="h-4.5 w-4.5 text-primary"
+                aria-hidden
+              />
               Filters
             </h2>
             <button
@@ -193,8 +218,12 @@ export default function Marketplace() {
               <h3 className="text-sm font-bold text-ink">{group.title}</h3>
               <div className="mt-4 space-y-3">
                 {group.items.map((item) => {
-                  const checked = group.title === "Province" ? provinces.has(item) : types.has(item);
-                  const toggle = group.title === "Province" ? toggleProvince : toggleType;
+                  const checked =
+                    group.title === "Province"
+                      ? provinces.has(item)
+                      : types.has(item);
+                  const toggle =
+                    group.title === "Province" ? toggleProvince : toggleType;
                   return (
                     <Checkbox
                       key={item}
@@ -354,16 +383,28 @@ export default function Marketplace() {
             </div>
           ) : (
             <div className="mt-6">
-              <EmptyState
-                icon={Package}
-                title="No rice matches your filters"
-                description="Try adjusting the search or clearing filters to see more harvests."
-                action={
-                  <Button variant="secondary" icon={Ban} onClick={clearFilters}>
-                    Reset all filters
-                  </Button>
-                }
-              />
+              {storeEmpty ? (
+                <EmptyState
+                  icon={Package}
+                  title="No rice products available yet"
+                  description="Farmers haven't published any rice listings yet. Check back soon!"
+                />
+              ) : (
+                <EmptyState
+                  icon={Package}
+                  title="No rice matches your filters"
+                  description="Try adjusting the search or clearing filters to see more harvests."
+                  action={
+                    <Button
+                      variant="secondary"
+                      icon={Ban}
+                      onClick={clearFilters}
+                    >
+                      Reset all filters
+                    </Button>
+                  }
+                />
+              )}
             </div>
           )}
 
@@ -379,7 +420,9 @@ export default function Marketplace() {
           {filtered.length > 0 && (
             <p className="mt-10 flex items-center justify-center gap-2 text-xs font-medium text-faint">
               <MapPin className="h-4 w-4" aria-hidden />
-              Showing rice across {new Set(filtered.map((item) => item.province)).size} Cambodian provinces
+              Showing rice across{" "}
+              {new Set(filtered.map((item) => item.province)).size} Cambodian
+              provinces
             </p>
           )}
         </section>

@@ -7,7 +7,7 @@ import {
   Percent,
   Receipt,
   Users,
-} from "lucide-react";
+} from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { AreaChart, BarChart, DonutChart, HBarList } from "../../components/charts";

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Home, Search } from "lucide-react";
+import { ArrowRight, Home, Search } from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button } from "../components/ui/core";
 

@@ -8,7 +8,7 @@ import {
   Store,
   ShoppingCart,
   CircleHelp,
-} from "lucide-react";
+} from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button } from "../../components/ui/core";
@@ -20,8 +20,6 @@ import {
   FARMERS as DEMO_FARMERS,
   NAV_BUYER,
   NOTIFICATIONS as DEMO_NOTIFICATIONS,
-  ORDERS as DEMO_ORDERS,
-  RICE_LISTINGS as DEMO_LISTINGS,
 } from "../../lib/data";
 import { getFarmers, getListings, getNotifications, getOrders } from "../../lib/services";
 import { useAsyncData } from "../../lib/useAsyncData";
@@ -51,8 +49,13 @@ export default function BuyerDashboard() {
   const toast = useToast();
   const { count, isFavorite, toggle } = useFavorites();
   const [notifications, setNotifications] = useAsyncData(getNotifications, DEMO_NOTIFICATIONS);
-  const [orders] = useAsyncData(getOrders, DEMO_ORDERS);
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
+  const loadMine = async () => {
+    if (!user) return [];
+    const all = await getOrders();
+    return all.filter((o) => o.buyerId === user.uid);
+  };
+  const [orders] = useAsyncData(loadMine, [], [user?.uid]);
+  const [listings] = useAsyncData(getListings, []);
   const [farmers] = useAsyncData(getFarmers, DEMO_FARMERS);
   const [following, setFollowing] = useState(() => new Set());
 
@@ -119,7 +122,7 @@ export default function BuyerDashboard() {
         </section>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Total orders" value="12" delta={8} icon={ShoppingBag} />
+          <StatCard label="Total orders" value={String(orders.length)} icon={ShoppingBag} />
           <StatCard
             label="Favorites"
             value={count}
@@ -168,9 +171,18 @@ export default function BuyerDashboard() {
                 </Link>
               </div>
               <div className="mt-4 space-y-4">
-                {orders.slice(0, 2).map((order) => (
-                  <OrderCard key={order.id} order={order} />
-                ))}
+                {orders.length ? (
+                  orders.slice(0, 2).map((order) => (
+                    <OrderCard key={order.id} order={order} />
+                  ))
+                ) : (
+                  <p className="rounded-card border border-dashed border-line bg-bg px-4 py-6 text-center text-sm text-subtle">
+                    No orders yet —{" "}
+                    <Link to="/marketplace" className="font-semibold text-primary hover:text-primary-dark">
+                      browse the marketplace
+                    </Link>
+                  </p>
+                )}
               </div>
             </section>
 
@@ -185,14 +197,20 @@ export default function BuyerDashboard() {
                 </Link>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {listings.slice(0, 3).map((item) => (
-                  <RiceCard
-                    key={item.id}
-                    item={item}
-                    favorite={isFavorite(item.id)}
-                    onToggleFavorite={handleFavorite}
-                  />
-                ))}
+                {listings.length ? (
+                  listings.slice(0, 3).map((item) => (
+                    <RiceCard
+                      key={item.id}
+                      item={item}
+                      favorite={isFavorite(item.id)}
+                      onToggleFavorite={handleFavorite}
+                    />
+                  ))
+                ) : (
+                  <p className="rounded-card border border-dashed border-line bg-bg px-4 py-6 text-center text-sm text-subtle">
+                    No rice listings published yet.
+                  </p>
+                )}
               </div>
             </section>
           </div>

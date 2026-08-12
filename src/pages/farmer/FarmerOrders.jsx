@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Eye, CheckCircle2, Truck } from "lucide-react";
+import { Download, Eye, CheckCircle2, Truck } from "../../lib/fa";
 import { DashboardLayout } from "../../components/layout/DashboardLayout.jsx";
 import { Button, IconButton } from "../../components/ui/core.jsx";
 import { SearchBar } from "../../components/ui/forms.jsx";
@@ -17,12 +17,11 @@ import {
   TD,
 } from "../../components/ui/display.jsx";
 import { Modal, useToast } from "../../components/ui/overlays.jsx";
-import { NAV_FARMER, ORDERS as DEMO_ORDERS } from "../../lib/data.js";
-import { getOrders } from "../../lib/services.js";
+import { NAV_FARMER } from "../../lib/data.js";
+import { getOrders, updateOrderStatus } from "../../lib/services.js";
 import { useAsyncData } from "../../lib/useAsyncData.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { formatDate, formatPrice } from "../../lib/utils.js";
-
-const BUYERS = ["Dara K.", "Nita V.", "Sopheak L.", "Chenda R."];
 
 const TABS = [
   { value: "All", label: "All" },
@@ -39,7 +38,13 @@ const NEXT_STATUS = {
 };
 
 export default function FarmerOrders() {
-  const [orders, setOrders] = useAsyncData(getOrders, DEMO_ORDERS);
+  const { user } = useAuth();
+  const loadMine = async () => {
+    if (!user) return [];
+    const all = await getOrders();
+    return all.filter((o) => o.farmerId === user.uid);
+  };
+  const [orders, setOrders] = useAsyncData(loadMine, [], [user?.uid]);
   const [tab, setTab] = useState("All");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -47,7 +52,7 @@ export default function FarmerOrders() {
   const toast = useToast();
 
   const displayOrders = useMemo(
-    () => orders.map((order, i) => ({ ...order, buyer: BUYERS[i % BUYERS.length] })),
+    () => orders.map((order) => ({ ...order, buyer: order.buyerName || order.buyer || "Buyer" })),
     [orders],
   );
 
@@ -56,7 +61,7 @@ export default function FarmerOrders() {
       displayOrders.filter((o) => {
         const matchTab =
           tab === "All" ||
-          (tab === "New" ? o.status === "Processing" && o.date >= "2026-07-20" : o.status === tab);
+          (tab === "New" ? o.status === "New" : o.status === tab);
         const matchQuery = `${o.id} ${o.buyer}`.toLowerCase().includes(query.toLowerCase());
         return matchTab && matchQuery;
       }),
@@ -67,10 +72,17 @@ export default function FarmerOrders() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const advance = (order) => {
+  const countBy = (status) => displayOrders.filter((o) => o.status === status).length;
+
+  const advance = async (order) => {
     const next = NEXT_STATUS[order.status];
     if (!next) {
       toast.info("No further action", `${order.id} is already ${order.status.toLowerCase()}.`);
+      return;
+    }
+    const ok = await updateOrderStatus(order.id, next);
+    if (!ok) {
+      toast.error("Could not update order", "Check your connection and try again.");
       return;
     }
     setOrders((list) => list.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
@@ -87,10 +99,14 @@ export default function FarmerOrders() {
     >
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: "New orders", value: 4, cls: "text-info" },
-          { label: "Processing", value: 3, cls: "text-warning" },
-          { label: "Shipped", value: 5, cls: "text-primary" },
-          { label: "Delivered", value: 12, cls: "text-success" },
+          { label: "New orders", value: countBy("New"), cls: "text-info" },
+          { label: "Processing", value: countBy("Processing"), cls: "text-warning" },
+          { label: "Shipped", value: countBy("Shipped"), cls: "text-primary" },
+          {
+            label: "Delivered",
+            value: displayOrders.filter((o) => o.status === "Delivered" || o.status === "Completed").length,
+            cls: "text-success",
+          },
         ].map((stat) => (
           <div key={stat.label} className="card p-5">
             <p className={`font-display text-3xl font-bold ${stat.cls}`}>{stat.value}</p>
@@ -147,7 +163,7 @@ export default function FarmerOrders() {
                     </div>
                   </TD>
                   <TD className="max-w-xs truncate text-subtle">
-                    {order.items.map((i) => i.name).join(", ")}
+                    {(order.items || []).map((i) => i.name).join(", ") || "—"}
                   </TD>
                   <TD className="font-bold text-ink">{formatPrice(order.total)}</TD>
                   <TD className="text-subtle">{formatDate(order.date)}</TD>
@@ -188,7 +204,7 @@ export default function FarmerOrders() {
             <div>
               <h4 className="text-sm font-bold uppercase tracking-wide text-subtle">Items</h4>
               <div className="mt-3 divide-y divide-line rounded-card border border-line">
-                {viewing.items.map((item, i) => (
+                {(viewing.items || []).map((item, i) => (
                   <div key={i} className="flex items-center justify-between p-3 text-sm">
                     <span className="font-medium text-ink">{item.name}</span>
                     <span className="text-subtle">
@@ -210,7 +226,7 @@ export default function FarmerOrders() {
               <h4 className="text-sm font-bold uppercase tracking-wide text-subtle">Tracking</h4>
               <Timeline
                 className="mt-3"
-                items={viewing.tracking.map((step) => ({
+                items={(viewing.tracking || []).map((step) => ({
                   label: step.label,
                   date: step.date || "Pending",
                   done: step.done,

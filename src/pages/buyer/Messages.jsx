@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, MessageSquare, Send, Store } from "lucide-react";
+import { ChevronLeft, MessageSquare, Send, Store } from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Button, IconButton } from "../../components/ui/core";

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -17,15 +16,11 @@ import {
   ShieldCheck,
   BarChart3,
   ArrowUpRight,
-  Database,
-} from "lucide-react";
+} from "../../lib/fa";
 
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { AreaChart, BarChart, DonutChart } from "../../components/charts";
 import { StatCard } from "../../components/ui/display";
-import { Button } from "../../components/ui/core";
-import { useToast } from "../../components/ui/overlays";
-import { seedDemoData } from "../../lib/services";
 import { cx, timeAgo } from "../../lib/utils";
 import {
   NAV_ADMIN,
@@ -88,26 +83,12 @@ function QuickAction({ icon: Icon, label, description, to }) {
 export default function AdminDashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const toast = useToast();
-  const [seeding, setSeeding] = useState(false);
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
   });
-
-  const handleSeed = async () => {
-    setSeeding(true);
-    const result = await seedDemoData();
-    setSeeding(false);
-    if (result.ok) {
-      const total = Object.values(result.results).reduce((sum, n) => sum + n, 0);
-      toast.success("Demo data loaded", `${total} records synced to Firestore.`);
-    } else {
-      toast.error("Sync failed", "Check your Firestore rules, then try again.");
-    }
-  };
 
   return (
     <DashboardLayout
@@ -130,19 +111,8 @@ export default function AdminDashboard() {
               Here's what's happening on KhmerRiceHub. Trading is healthy across {STATS.provinces}{" "}
               provinces with a {STATS.satisfaction}% satisfaction rate this week.
             </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Database}
-              loading={seeding}
-              onClick={handleSeed}
-              className="mt-5"
-            >
-              Load demo data into Firestore
-            </Button>
-            <p className="mt-2 text-xs text-faint">
-              Syncs the bundled demo records into Firestore. The app falls back to demo data
-              automatically when the database is empty.
+            <p className="mt-5 rounded-xl border border-line bg-surface px-4 py-3 text-xs leading-5 text-subtle">
+              All marketplace data — listings, orders, and users — is read live from Firestore.
             </p>
           </div>
         </section>

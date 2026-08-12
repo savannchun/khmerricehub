@@ -11,7 +11,7 @@ import {
   Target,
   Users,
   Wheat,
-} from "lucide-react";
+} from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button, Reveal } from "../components/ui/core";
 import { Avatar, Timeline } from "../components/ui/display";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   BadgeCheck,
@@ -12,30 +12,26 @@ import {
   ShoppingBag,
   Store,
   Truck,
-} from "lucide-react";
+} from "../lib/fa";
 import { Navbar, Footer } from "../components/layout/Navbar";
 import { Button, IconButton, Reveal } from "../components/ui/core";
-import { Avatar, Badge, Breadcrumb, ProgressBar, Rating } from "../components/ui/display";
+import { Avatar, Badge, Breadcrumb, EmptyState, ProgressBar, Rating } from "../components/ui/display";
 import { Textarea } from "../components/ui/forms";
 import { RiceCard, ReviewCard } from "../components/cards";
 import { useToast } from "../components/ui/overlays";
-import {
-  FARMERS as DEMO_FARMERS,
-  REVIEWS as DEMO_REVIEWS,
-  RICE_LISTINGS as DEMO_LISTINGS,
-} from "../lib/data";
-import { getFarmers, getListings, getReviews } from "../lib/services";
+import { REVIEWS as DEMO_REVIEWS } from "../lib/data";
+import { getListings, getListing, getReviews, getUserProfile } from "../lib/services";
 import { useAsyncData } from "../lib/useAsyncData";
 import { cx, formatPrice, formatNumber } from "../lib/utils";
 
-function RiceViewer({ item, farmers, reviews, related }) {
-  const farmer = farmers.find((f) => f.id === item.farmerId) || farmers[0];
+function RiceViewer({ item, farmer, reviews, related }) {
   const [activeImage, setActiveImage] = useState(item.image);
   const [qty, setQty] = useState(1);
   const [favorite, setFavorite] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const toast = useToast();
+  const specs = item.specs || {};
 
   const toggleFavorite = () => {
     setFavorite((prev) => {
@@ -131,7 +127,7 @@ function RiceViewer({ item, farmers, reviews, related }) {
             <p className="mt-6 leading-7 text-ink-soft">{item.description}</p>
 
             <div className="mt-7 flex flex-wrap items-center gap-2">
-              {Object.entries(item.specs).map(([key, value]) => (
+              {Object.entries(specs).map(([key, value]) => (
                 <span
                   key={key}
                   className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-subtle"
@@ -173,7 +169,7 @@ function RiceViewer({ item, farmers, reviews, related }) {
               </div>
               <Button
                 as={Link}
-                to={`/checkout?item=${item.id}`}
+                to={`/checkout?item=${item.id}&qty=${qty}`}
                 size="lg"
                 icon={ShoppingBag}
                 className="flex-1"
@@ -301,19 +297,90 @@ function RiceViewer({ item, farmers, reviews, related }) {
 
 export default function RiceDetails() {
   const { id } = useParams();
-  const [listings] = useAsyncData(getListings, DEMO_LISTINGS);
-  const [farmers] = useAsyncData(getFarmers, DEMO_FARMERS);
+  const [item, setItem] = useState(null);
+  const [loadedId, setLoadedId] = useState(null);
+  const [farmerInfo, setFarmerInfo] = useState(null);
+  const [allListings] = useAsyncData(getListings, []);
   const [reviews] = useAsyncData(getReviews, DEMO_REVIEWS);
-  const item = listings.find((listing) => listing.id === id) || listings[0];
-  const related = listings.filter(
-    (listing) =>
-      listing.category === item.category && listing.id !== item.id && listing.status === "Published",
-  ).slice(0, 3);
+
+  useEffect(() => {
+    let active = true;
+    getListing(id).then((doc) => {
+      if (!active) return;
+      setItem(doc);
+      setLoadedId(id);
+    });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    let active = true;
+    const farmerId = item?.farmerId;
+    if (farmerId) {
+      getUserProfile(farmerId).then((profile) => {
+        if (active) setFarmerInfo({ farmerId, profile });
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [item?.farmerId]);
+
+  const loading = loadedId !== id;
+  const profile =
+    farmerInfo && farmerInfo.farmerId === item?.farmerId ? farmerInfo.profile : null;
+
+  const farmer = useMemo(() => {
+    const fallbackName =
+      item?.farmer || profile?.name || profile?.displayName || "Khmer rice farmer";
+    return {
+      id: item?.farmerId,
+      name: fallbackName,
+      owner: fallbackName,
+      verified: Boolean(profile?.verified),
+      province: profile?.province || item?.province || "",
+      rating: Number(profile?.rating) || 0,
+      reviews: Number(profile?.reviews) || 0,
+      bio: profile?.bio || profile?.about || "Farm-fresh rice harvested with care in Cambodia.",
+    };
+  }, [item, profile]);
+
+  const related = useMemo(
+    () =>
+      allListings.filter(
+        (listing) =>
+          listing.category === item?.category &&
+          listing.id !== item?.id &&
+          listing.status === "Published",
+      ).slice(0, 3),
+    [allListings, item],
+  );
 
   return (
     <div className="min-h-screen bg-bg">
       <Navbar />
-      <RiceViewer key={item.id} item={item} farmers={farmers} reviews={reviews} related={related} />
+      {loading ? (
+        <div className="mx-auto max-w-7xl px-5 py-16 text-center lg:px-8">
+          <p className="text-sm text-subtle">Loading listing…</p>
+        </div>
+      ) : !item ? (
+        <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8">
+          <EmptyState
+            icon={Package}
+            title="Listing not found"
+            description="This rice listing may have been removed. Browse the marketplace for other harvests."
+            action={
+              <Button as={Link} to="/marketplace">
+                Back to marketplace
+              </Button>
+            }
+          />
+        </div>
+      ) : (
+        <RiceViewer key={item.id} item={item} farmer={farmer} reviews={reviews} related={related} />
+      )}
       <Footer />
     </div>
   );

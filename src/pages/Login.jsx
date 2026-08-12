@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Mail, ShieldCheck, Star } from "lucide-react";
+import { ArrowRight, Mail, ShieldCheck, Star } from "../lib/fa";
 import { Logo } from "../components/layout/Navbar";
 import { Button } from "../components/ui/core";
 import { Checkbox, Input, PasswordInput } from "../components/ui/forms";
@@ -65,9 +65,19 @@ export default function Login() {
       const role = loggedIn?.role || "buyer";
       const name = loggedIn?.name || email.split("@")[0];
       toast.success("Welcome back!", `You're now logged in as a ${role}.`);
-      navigate(role === "farmer" ? "/farmer/dashboard" : "/buyer/dashboard", { state: { name } });
+      navigate(
+        role === "admin"
+          ? "/admin/dashboard"
+          : role === "farmer"
+            ? "/farmer/dashboard"
+            : "/buyer/dashboard",
+        { state: { name } },
+      );
     } catch (err) {
-      toast.error("Login failed", readableAuthError(err.code) || "Check your email and password.");
+      toast.error(
+        "Login failed",
+        readableAuthError(err.code) || "Check your email and password.",
+      );
     } finally {
       setLoading(false);
     }
@@ -76,16 +86,25 @@ export default function Login() {
   const handleGoogle = async () => {
     try {
       const loggedIn = await googleSignIn();
-      toast.success("Signed in with Google", `Welcome back, ${loggedIn?.name || "buyer"}.`);
+      toast.success(
+        "Signed in with Google",
+        `Welcome back, ${loggedIn?.name || "buyer"}.`,
+      );
       navigate("/buyer/dashboard");
     } catch {
-      toast.error("Google sign-in failed", "Please use email + password or the demo account.");
+      toast.error(
+        "Google sign-in failed",
+        "Please use email + password or the demo account.",
+      );
     }
   };
 
   const handleDemo = () => {
     demoLogin("buyer", "Dara K.");
-    toast.success("Welcome back, Dara!", "You're now logged in as a buyer (demo).");
+    toast.success(
+      "Welcome back, Dara!",
+      "You're now logged in as a buyer (demo).",
+    );
     navigate("/buyer/dashboard");
   };
 
@@ -105,8 +124,8 @@ export default function Login() {
               Buy direct from the farmers of Cambodia.
             </h1>
             <p className="mt-5 text-lg leading-8 text-green-50/85">
-              Traceable premium rice, fair prices, and delivery across all 24 provinces —
-              from field to table.
+              Traceable premium rice, fair prices, and delivery across all 24
+              provinces — from field to table.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/20">
@@ -126,7 +145,9 @@ export default function Login() {
               </span>
               <div>
                 <p className="font-display text-xl font-bold text-ink">98%</p>
-                <p className="text-xs font-medium text-subtle">buyer satisfaction</p>
+                <p className="text-xs font-medium text-subtle">
+                  buyer satisfaction
+                </p>
               </div>
             </div>
           </div>
@@ -139,7 +160,9 @@ export default function Login() {
             <Logo variant="dark" />
           </div>
           <div className="card p-8 sm:p-10">
-            <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Welcome back</h2>
+            <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
+              Welcome back
+            </h2>
             <p className="mt-2 text-subtle">
               Log in to continue ordering rice directly from Cambodian farms.
             </p>
@@ -176,7 +199,13 @@ export default function Login() {
                   Forgot password?
                 </button>
               </div>
-              <Button type="submit" size="lg" loading={loading} className="w-full" icon={ArrowRight}>
+              <Button
+                type="submit"
+                size="lg"
+                loading={loading}
+                className="w-full"
+                icon={ArrowRight}
+              >
                 Log in
               </Button>
             </form>
@@ -200,13 +229,22 @@ export default function Login() {
               Continue with Google
             </Button>
 
-            <Button type="button" variant="ghost" size="lg" onClick={handleDemo} className="w-full">
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              onClick={handleDemo}
+              className="w-full"
+            >
               Skip — continue as demo buyer
             </Button>
 
             <p className="mt-8 text-center text-sm text-subtle">
               Don't have an account?{" "}
-              <Link to="/register" className="font-semibold text-primary transition hover:text-primary-dark">
+              <Link
+                to="/register"
+                className="font-semibold text-primary transition hover:text-primary-dark"
+              >
                 Register
               </Link>
             </p>
